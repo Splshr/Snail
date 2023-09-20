@@ -4,7 +4,7 @@ import json
 from telebot import types
 
 
-bot = telebot.TeleBot('6617018794:AAF9CPJ-nkBTWgG78Vq-HkzYFHX6DHm1sHU')
+bot = telebot.TeleBot(' ')
 
 admin_chat_id = '305434350'
 
