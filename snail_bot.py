@@ -9,6 +9,7 @@ bot = telebot.TeleBot('6617018794:AAF9CPJ-nkBTWgG78Vq-HkzYFHX6DHm1sHU')
 admin_chat_id = '305434350'
 
 order_text = ""  # Глобальная переменная для хранения текста заказа
+order_address = ""
 
 #Обработка того, что пользователь отправляет рандомный стикер в чат.
 @bot.message_handler(content_types=['sticker'])
@@ -33,7 +34,7 @@ def send_welcome(message):
     bot.send_message(message.chat.id, "Вітаємо у Головному меню бота Равлик! Поки працюємо у тестовому режимі 🇺🇦", reply_markup=markup)
 
 
-@bot.message_handler(func=lambda message: message.text not in ["Наша місія ✉️", "Замовлення 🌮", "Зв'язатись з нами ☎️", "Равлик Кешбек 💸", "Відгуки та пропозиції 👀", "Доставка", "Самовивіз", "Поділитись геопозицією", "Ввести адресу вручну", "Назад", "Головне меню"])
+@bot.message_handler(func=lambda message: message.text not in ["Наша місія ✉️", "Замовлення 🌮", "Зв'язатись з нами ☎️", "Равлик Кешбек 💸", "Відгуки та пропозиції 👀", "Доставка", "Самовивіз", "Поділитись геопозицією", "Ввести адресу вручну", "Назад", "Головне меню", "Редагувати замовлення", "Обрати час"])
 def handle_unrecognized_commands(message):
     # Обработка незнакомых команд
     bot.send_message(message.chat.id, "Незнайома команда. Виберіть команду з Головного меню.")
@@ -51,7 +52,7 @@ def contact_us(message):
 @bot.message_handler(func=lambda message: message.text == "Замовлення 🌮")
 
 def online_order(message):
-    markup = types.ReplyKeyboardMarkup(row_width=1)
+    markup = types.ReplyKeyboardMarkup(row_width = 1)
     item1 = types.KeyboardButton("Доставка")
     item2 = types.KeyboardButton("Самовивіз")
     item3 = types.KeyboardButton("Назад")
@@ -61,36 +62,83 @@ def online_order(message):
 # Обработчик выбора "Доставка"
 @bot.message_handler(func=lambda message: message.text == "Доставка")
 def request_order(message):
-    markup = types.ReplyKeyboardMarkup(resize_keyboard = True)
+    markup = types.ReplyKeyboardMarkup(row_width = 1)
     item1 = types.KeyboardButton("Назад")
     markup.add(item1)
-    bot.send_message(message.chat.id, "Напишіть, що ви бажаєте замовити. Зауважте, що замовлення не можна буде редагувати.", reply_markup=markup)
+    bot.send_message(message.chat.id, "Напишіть, що ви бажаєте замовити.", reply_markup=markup)
     # Добавляем обработчик для следующего сообщения
-    bot.register_next_step_handler(message, process_order)
+    bot.register_next_step_handler(message, process_order_delivery)
 
 @bot.message_handler(func=lambda message: message.text == "Самовивіз")
 def request_order(message):
-    bot.send_message(message.chat.id, "Напишіть, що ви бажаєте замовити. Зауважте, що замовлення не можна буде редагувати.")
+    markup = types.ReplyKeyboardMarkup(row_width = 1)
+    item1 = types.KeyboardButton("Назад")
+    markup.add(item1)
+    bot.send_message(message.chat.id, "Напишіть, що ви бажаєте замовити.", reply_markup = markup)
     # Добавляем обработчик для следующего сообщения
-    bot.register_next_step_handler(message, process_order)
+    bot.register_next_step_handler(message, process_order_takeway)
 
 # Обработчик для получения заказа
-def process_order(message):
+def process_order_takeway(message):
     global order_text
-    order_text = message.text
-    if order_text == "Назад":
+    if message.text == "Назад":
         online_order(message)
     else:
+        order_text = message.text
+        bot.send_message(message.chat.id, f"Дякуємо. Ви бажаєте замовити: {order_text}")
+        markup = types.ReplyKeyboardMarkup(row_width=1)
+        item1 = types.KeyboardButton("За 20 хв")
+        item2 = types.KeyboardButton("За 30 хв")
+        item3 = types.KeyboardButton("Свій час")
+        item4 = types.KeyboardButton("Редагувати замовлення")
+        markup.add(item1, item2, item3, item4)
+        # Отправляем сообщение с клавиатурой
+        bot.send_message(message.chat.id, "Оберіть бажаний час:", reply_markup=markup)
+        # Здесь можно добавить логику для отправки заказа клиенту или обработку заказа
+
+
+# Обработчик для получения заказа
+def process_order_delivery(message):
+    global order_text
+    if message.text == "Назад":
+        online_order(message)
+    else:
+        order_text = message.text
         bot.send_message(message.chat.id, f"Дякуємо. Ви бажаєте замовити: {order_text}")
         markup = types.ReplyKeyboardMarkup(row_width=1)
         item1 = types.KeyboardButton("Поділитись геопозицією")
         item2 = types.KeyboardButton("Ввести адресу вручну")
-        item3 = types.KeyboardButton("Головне меню")
+        item3 = types.KeyboardButton("Редагувати замовлення")
         markup.add(item1, item2, item3)
 
         # Отправляем сообщение с клавиатурой
         bot.send_message(message.chat.id, "Оберіть спосіб доставки:", reply_markup=markup)
         # Здесь можно добавить логику для отправки заказа клиенту или обработку заказа
+
+@bot.message_handler(func=lambda message: message.text == "Редагувати замовлення")
+def handle_main_menu_button(message):
+    request_order(message)
+
+@bot.message_handler(func=lambda message: message.text == "Ввести адресу вручну")
+def written_address(message):
+    markup = types.ReplyKeyboardMarkup(row_width = 1)
+    item1 = types.KeyboardButton("Назад")
+    markup.add(item1)
+    bot.send_message(message.chat.id, "Будь ласка, введіть місце, куди ви бажаєте отримати ваше замовлення:", reply_markup = markup)
+    bot.register_next_step_handler(message, process_written_address)
+
+def process_written_address(message):
+    global order_address
+    if message.text == "Назад":
+        written_address(message)
+    else:
+        order_address = message.text
+        markup = types.ReplyKeyboardMarkup(row_width = 1)
+        item1 = types.KeyboardButton("Головне меню")
+        markup.add(item1)
+        bot.send_message(message.chat.id, f"Дякуємо. Ваша адреса: {order_address}\nВаше замовлення:{order_text}", reply_markup = markup)
+        bot.send_message(admin_chat_id, f"{order_address},\n{order_text}")
+        order_address = ""
 
 @bot.message_handler(func=lambda message: message.text == "Головне меню")
 def handle_main_menu_button(message):
@@ -99,7 +147,7 @@ def handle_main_menu_button(message):
 @bot.message_handler(func=lambda message: message.text == "Поділитись геопозицією")
 def share_location(message):
     # Запрашиваем у пользователя его геопозицию с помощью клавиатуры
-    markup = types.ReplyKeyboardMarkup(one_time_keyboard=True, resize_keyboard=True)
+    markup = types.ReplyKeyboardMarkup(one_time_keyboard=True, row_width = 1)
     item1 = types.KeyboardButton("Відправити геопозицію", request_location=True)
     item2 = types.KeyboardButton("Головне меню")
     markup.add(item1, item2)
@@ -116,7 +164,7 @@ def receive_location(message):
         item1 = types.KeyboardButton("Головне меню")
         markup.add(item1)
         bot.send_message(message.chat.id, f"Ви поділилися геопозицією з координатами:\nШирота: {latitude}\nДовгота: {longitude}\nВаше замовлення: {order_text}", reply_markup = markup)
-        bot.send_message(admin_chat_id, f"{latitude}, {longitude}, {order_text}")
+        bot.send_message(admin_chat_id, f"{latitude}, {longitude},\n{order_text}")
         order_text = ""
     else:
         bot.send_message(message.chat.id, "Ви не поділилися геопозицією. Будь ласка, натисніть на кнопку 'Поділитись геопозицією' та надайте доступ до своєї геопозиції.")
@@ -138,7 +186,7 @@ def handle_back_button(message):
 
 @bot.message_handler(func=lambda message: message.text == "Відгуки та пропозиції 👀")
 def review(message):
-    markup = types.ReplyKeyboardMarkup(resize_keyboard = True)
+    markup = types.ReplyKeyboardMarkup(row_width = 1)
     item1 = types.KeyboardButton("Назад")
     markup.add(item1)
     bot.send_message(message.chat.id, "Напишіть повідомленням ваш відгук та ваші пропозиції. Зауважте, що це абсолютно анонімно, дякуємо. 🤝", reply_markup=markup)
@@ -155,8 +203,8 @@ def process_review(message):
 def save_review(message):
     review_text = message.text
     now = datetime.datetime.now()
-    review_data = f"{now.date()} // {now.time()} // {review_text}\n"
-    bot.send_message(admin_chat_id, review_data)
+    review_data = f"{now.date()}\n{now.time()}\n{review_text}\n\n"
+    bot.send_message(admin_chat_id, review_text)
     # Сохраняем отзыв в файл
     with open("reviews.txt", "a") as f:
         f.write(review_data)
