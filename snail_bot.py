@@ -2,11 +2,19 @@ import telebot
 import datetime
 import json
 from telebot import types
+import dropbox
+from dropbox.exceptions import AuthError, ApiError
 
 
 bot = telebot.TeleBot('6617018794:AAF9CPJ-nkBTWgG78Vq-HkzYFHX6DHm1sHU')
 
 admin_chat_id = '305434350'
+
+# Ваш ключ доступа к Dropbox API
+ACCESS_TOKEN = 'sl.Bmsa9nf4ZeUkfOujxUHCQNNMV4pqyaEr5LsRTp7TsekDdIqhvcbBW3VbWLJgy8jhS9Wk--yttBL9Ru1SC179ope7E4ZY6x-sQNEc69Hxnd94BqnFtX3TbWIY71HJp62EDXWYjqiwy0vK'
+
+
+dbx = dropbox.Dropbox(ACCESS_TOKEN)
 
 order_text = ""  # Глобальная переменная для хранения текста заказа
 order_address = ""
@@ -34,7 +42,7 @@ def send_welcome(message):
     bot.send_message(message.chat.id, "Вітаємо у Головному меню бота Равлик! Поки працюємо у тестовому режимі 🇺🇦", reply_markup=markup)
 
 
-@bot.message_handler(func=lambda message: message.text not in ["Наша місія ✉️", "Замовлення 🌮", "Зв'язатись з нами ☎️", "Равлик Кешбек 💸", "Відгуки та пропозиції 👀", "Доставка", "Самовивіз", "Поділитись геопозицією", "Ввести адресу вручну", "Назад", "Головне меню", "Редагувати замовлення", "Обрати час"])
+@bot.message_handler(func=lambda message: message.text not in ["Наша місія ✉️", "Замовлення 🌮", "Зв'язатись з нами ☎️", "Равлик Кешбек 💸", "Відгуки та пропозиції 👀", "Доставка", "Самовивіз", "Поділитись геопозицією", "Ввести адресу вручну", "Назад", "Головне меню", "Редагувати замовлення", "Обрати час", "Додати чек"])
 def handle_unrecognized_commands(message):
     # Обработка незнакомых команд
     bot.send_message(message.chat.id, "Незнайома команда. Виберіть команду з Головного меню.")
@@ -179,6 +187,47 @@ def cashback(message):
 
     # Отправляем сообщение с клавиатурой
     bot.send_message(message.chat.id, "Виберіть дію:", reply_markup=markup)
+
+
+@bot.message_handler(func=lambda message: message.text == "Додати чек")
+def add_bill(message):
+    bot.send_message(message.chat.id, "Введіть унікальний ID чека")
+    bot.register_next_step_handler(message, process_unique_id)
+
+def process_unique_id(message):
+    unique_id = message.text.strip()
+    bill_review(message, unique_id)
+
+def bill_review(message, unique_id):
+
+    file_path = f'/{unique_id}.txt'  # Полный путь к файлу в Dropbox
+
+    try:
+        # Получаем метаданные файла
+        metadata = dbx.files_get_metadata(file_path)
+
+        # Скачиваем содержимое файла
+        _, response = dbx.files_download(file_path)
+        file_content = response.content.decode('utf-8')
+
+        # Отправляем содержимое файла как сообщение в Telegram
+        bot.send_message(message.chat.id, f"Содержимое файла {unique_id}.txt:\n\n{file_content}")
+
+    except dropbox.exceptions.HttpError as err:
+        bot.send_message(message.chat.id, f"Ошибка Dropbox API: {err}")
+    except dropbox.exceptions.AuthError as err:
+        bot.send_message(message.chat.id, f"Ошибка аутентификации Dropbox: {err}")
+    except dropbox.exceptions.ApiError as err:
+        if isinstance(err.error, dropbox.files.GetMetadataError) and err.error.is_path() and err.user_message_text:
+            if err.error.is_conflict():
+                bot.send_message(message.chat.id, 'Конфликт пути при работе с Dropbox API')
+            else:
+                bot.send_message(message.chat.id, err.user_message_text)
+        else:
+            bot.send_message(message.chat.id, f"Ошибка Dropbox API: {err}")
+    except Exception as e:
+        bot.send_message(message.chat.id, f"Произошла ошибка: {e}")
+
 
 @bot.message_handler(func=lambda message: message.text == "Назад")
 def handle_back_button(message):
